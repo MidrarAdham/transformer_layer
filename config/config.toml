@@ -1,5 +1,5 @@
 [meta]
-description = "ResStock 2025, OR, upgrade 00, winter week"
+description = "ResStock 2024, OR, upgrades 00,01, and 02 summer month"
 
 #Project
 [project]
@@ -16,11 +16,10 @@ results_dir = "results"
 dataset_dir = "/mnt/datasets/resstock_2024/cosimulation"
 
 # currently we only have one upgrade - up00
-upgrades = ["up00"]
+upgrades = ["up02"]
 
 # Reading the dataset files takes time, so we'll store the appropriate path in a file and read from it later:
 use_cached_building_ids = true
-building_ids_cache_name = "building_ids.csv"
 
 # OCHRE files have so many columns we don't use. So let's focus on the ones we need
 [columns]
@@ -51,6 +50,7 @@ cache_format = "parquet"
 
 [method4]
 n_total_customers = 27
+building_ids_cache_name = "./less_than_five_tons_resstock_2024.csv"
 
 # Monte carlo parameters:
 n_trials = 1000
