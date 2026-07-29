@@ -319,14 +319,21 @@ def method4_metered_feeder_max_demand_for_specific_27_customers (cfg):
     
     :param cfg: read the configuration file, config.toml
     """
+
+    print("\n\n==========================\n\n")
+    print("Method 4B")
+    print("\n\n==========================\n\n")
+
     upgrades = cfg["data"]["upgrades"]
     pf = cfg["electrical"]["power_factor"]
     dataset_dir = cfg["data"]["dataset_dir"]
 
 
+
     UF = 0.8
     available_kva = [25.0, 50.0, 75.0]
     n_trials = cfg["method4"]["n_trials"]
+    cached_bldg_id = cfg["method4"]["building_ids_cache_name"]
     n_total_customers = cfg["method4"]["n_total_customers"]
 
     cluster_min = 1
@@ -342,7 +349,8 @@ def method4_metered_feeder_max_demand_for_specific_27_customers (cfg):
             n_buildings=n_total_customers,
             dataset_dir=dataset_dir,
             upgrades=upgrades,
-            randomized=False
+            randomized=False,
+            cached_building_ids=cached_bldg_id
         )
     analyzer.run()
 
@@ -447,6 +455,9 @@ def method4_metered_feeder_max_demand (cfg):
     
     :param cfg: read the configuration file, config.toml
     """
+    print("\n\n==========================\n\n")
+    print("Method 4")
+    print("\n\n==========================\n\n")
     upgrades = cfg["data"]["upgrades"]
     pf = cfg["electrical"]["power_factor"]
     dataset_dir = cfg["data"]["dataset_dir"]
@@ -456,9 +467,11 @@ def method4_metered_feeder_max_demand (cfg):
     available_kva = [25.0, 50.0, 75.0]
     n_trials = cfg["method4"]["n_trials"]
     n_total_customers = cfg["method4"]["n_total_customers"]
+    cached_bldg_id = cfg["method4"]["building_ids_cache_name"]
+
 
     cluster_min = 1
-    cluster_max = 18
+    cluster_max = 13
 
     seed = 123
     rng = np.random.default_rng(seed=seed)
@@ -474,7 +487,8 @@ def method4_metered_feeder_max_demand (cfg):
             n_buildings=n_total_customers,
             dataset_dir=dataset_dir,
             upgrades=upgrades,
-            randomized=True
+            randomized=True,
+            cached_building_ids = cached_bldg_id
         )
         analyzer.run()
 
@@ -497,6 +511,7 @@ def method4_metered_feeder_max_demand (cfg):
         # Iterate over the cluster index and size:
         for c_idx, c_size in enumerate (cluster_sizes, start=1):
             cluster_ids = customer_ids[idx: idx + c_size]
+            bldg_ids = [bldg_id.split('_')[1] for bldg_id in customer_ids[idx: idx + c_size]]
             idx += c_size
     
             agg_results = analyzer.aggregate_customers_load_calculations(
@@ -533,6 +548,7 @@ def method4_metered_feeder_max_demand (cfg):
                 "cluster_peak_kw":cluster_peak_kw,
                 "cluster_required_kva":cluster_req_kva,
                 "chosen_transformer_kva":chosen,
+                "building_IDs": bldg_ids,
             })
         
         trial_rows.append ({

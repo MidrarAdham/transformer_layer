@@ -16,13 +16,14 @@ class LoadProfiles:
                  dataset_dir: str,
                  n_buildings: int,
                  upgrades: list[str] = ['up00'],
-                 randomized : bool = False
+                 randomized : bool = False,
+                 cached_building_ids : str = "./less_than_five_tons_resstock_2024.csv"
                  ):
         
         self.upgrades = upgrades
         self.dataset_dir = dataset_dir
         self.n_buildings = n_buildings
-        self.cached_bldg_ids_file = './cached_building_ids.csv'
+        self.cached_bldg_ids_file = cached_building_ids
         self.randomized = randomized
 
         # Data storing structure:
@@ -50,43 +51,7 @@ class LoadProfiles:
         else:
             print('='*50)
             print(f'file {self.cached_bldg_ids_file}.csv is NOT in directory.')
-            print(f'Writing a new {self.cached_bldg_ids_file}.csv')
-            print('='*50)
             return False
-
-    def _filter_datasets (self):
-        '''
-        Goes through the downloaded ResStock dataset, ensures every building has in.schedules.csv and it is not empty.
-
-        INPUTS: NONE
-        OUTPUTS: writes a csv file containing the correct building IDs
-        RETURNS: NONE
-        '''
-        root = Path (self.dataset_dir)
-        with open(self.cached_bldg_ids_file, 'w') as f:
-            for upgrade in self.upgrades:
-                for bldg_id in root.iterdir():
-                    up00 = bldg_id / upgrade
-                    target_file = up00 / 'in.schedules.csv'
-
-                    if target_file.is_file() and target_file.stat().st_size > 0:
-                        f.write(f"{bldg_id.name}\n")
-
-    def _build_input_files_paths (self, building_ids) -> list[str]:
-        '''
-        Build paths to the correct building ID folders.
-        INPUTS: building IDs folders
-        OUTPUTS: NONE
-        RETURNS: a list of input paths to the correct bldg IDs
-        '''
-        input_paths = []
-
-        for upgrade in self.upgrades:
-            for bldg in building_ids:
-                input_paths.append(os.path.join(self.dataset_dir, bldg, upgrade))
-
-        
-        return input_paths
 
     def _read_the_cached_file (self) -> list:
         '''
@@ -95,8 +60,8 @@ class LoadProfiles:
         OUTPUTS: NONE
         RETURNS: The available build IDs
         '''
-        with open (self.cached_bldg_ids_file, 'r') as input_paths:
-            lines = [line.strip() for line in input_paths if line.strip()]
+        lines = pd.read_csv (self.cached_bldg_ids_file)
+        lines = lines['timeseries_file'].to_list ()
         
         available = len(lines)
 
@@ -109,9 +74,16 @@ class LoadProfiles:
             )
             print("="*50)
             num_buildings = available
+
         
         else:
             num_buildings = self.n_buildings
+            print(
+                f"[LoadProfileAnalyzer] Requested n_buildings={self.n_buildings} "
+                f"but {available} are available in {self.cached_bldg_ids_file}. "
+                f"Using {available}."
+            )
+
         
         if self.randomized:
             # This picks a random set of num_buildings. 
@@ -119,6 +91,7 @@ class LoadProfiles:
         else:
             return lines[:num_buildings]
         
+
     def _read_simulation_output_files (self, input_path: str):
         '''
         After running OCHRE simulation, this method reads the output file.
@@ -141,20 +114,20 @@ class LoadProfiles:
         try:
 
             # Get the building file name
-            bldg = os.path.basename(os.path.dirname(input_path))
+            bldg = input_path.split('/')[5]
 
             # Get the upgrade name
-            upgrade = os.path.basename(input_path)
+            upgrade = input_path.split('/')[6]
 
             # build the output file name
             # csv_filename = f"out_{bldg}_{upgrade}.csv"
             csv_filename = "ochre.csv"
 
-            # Create the path that leads to the output file name
-            target_file = os.path.join(input_path, csv_filename)
             # Read the output file name
-            df = pd.read_csv(target_file, usecols=keep_cols)
-            
+            df = pd.read_parquet(input_path)
+            time_series = pd.date_range(start="2026-01-01 00:00:00", periods=len(df), freq="min")
+            df.insert(0, "Time", time_series.strftime("%Y-%m-%d %H:%M:%S"))
+
             df['Time'] = pd.to_datetime(df['Time'])
 
             df['day'] = df['Time'].dt.floor('D')
@@ -162,8 +135,8 @@ class LoadProfiles:
         
         except FileNotFoundError:
             print("="*50)
-            print(f"CSV file {target_file} not found.")
-            print(f"Check building {bldg}, upgrade {upgrade} to see if {target_file} exists!")
+            print(f"CSV file {input_path} not found.")
+            print(f"Check building {bldg}, upgrade {upgrade} to see if {input_path} exists!")
             print("Quitting ... ")
             print("="*50)
             quit()
@@ -183,13 +156,17 @@ class LoadProfiles:
 
         '''
         if not self._check_file_exists():
+            print(f"File {self.cached_bldg_ids_file} does not exist!")
+            print('quitting')
+            quit()
 
-            self._filter_datasets()
-            building_ids = self._read_the_cached_file()
+            # self._filter_datasets()
+            # building_ids = self._read_the_cached_file()
         else:
             building_ids = self._read_the_cached_file()
-        
-        input_paths = self._build_input_files_paths (building_ids=building_ids)
+
+        input_paths = building_ids
+        # input_paths = self._build_input_files_paths (building_ids=building_ids)
         
         return input_paths
 
@@ -509,6 +486,8 @@ class LoadProfiles:
 
         input_paths = self.input_files_handler()
 
+        # input_paths = input_paths [3:5]
+
         for input_path in input_paths:
 
             df, bldg, upgrade = self._read_simulation_output_files(input_path=input_path)
@@ -527,7 +506,7 @@ if __name__ == "__main__":
     
     analyzer = LoadProfiles (dataset_dir = dataset_dir,
                               n_buildings = 50,
-                              upgrades = ['up00']
+                              upgrades = ['up02']
                               )
     
     analyzer.run()

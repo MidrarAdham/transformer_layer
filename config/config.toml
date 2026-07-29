@@ -49,8 +49,8 @@ random_seed = 123
 cache_format = "parquet"
 
 [method4]
-n_total_customers = 27
-building_ids_cache_name = "./less_than_five_tons_resstock_2024.csv"
+n_total_customers = 762
+building_ids_cache_name = "../config/less_than_five_tons_resstock_2024.csv"
 
 # Monte carlo parameters:
-n_trials = 1000
+n_trials = 20
